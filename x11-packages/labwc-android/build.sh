@@ -29,3 +29,38 @@ termux_step_pre_configure() {
 		-e "s|'/system/lib64/libandroid.so'|'${stubdir}/libandroid.so'|" \
 		meson.build
 }
+
+termux_step_make() {
+	# Verbose ninja so CI logs capture the full compile/link commands, and a
+	# post-mortem dump of object-file ELF headers on failure.
+	# Context (run8): lld 21 reported every freshly compiled .o of this project
+	# as "incompatible with aarch64linux", while the identical NDK toolchain
+	# linked libwlroots-0.19.so fine in the same job.
+	local ndir="."
+	if ! test -f build.ninja; then
+		test -f build/build.ninja && ndir="build"
+	fi
+	local rc=0
+	ninja -v -C "$ndir" -j "$TERMUX_PKG_MAKE_PROCESSES" || rc=$?
+	[ "$rc" -eq 0 ] && return 0
+
+	echo "===== labwc-android build failure diagnostics ====="
+	echo "cwd: $(pwd)  ndir: $ndir"
+	local readelf
+	readelf="$(ls "$HOME"/.termux-build/_cache/android-*/bin/llvm-readelf 2>/dev/null | head -n1)"
+	echo "llvm-readelf: ${readelf:-NOT FOUND}"
+	echo "--- meson crossfile:"
+	sed -n '1,60p' "$TERMUX_PKG_BUILDDIR/tmp/meson-crossfile-aarch64.txt" 2>/dev/null || echo "(no crossfile)"
+	local f
+	for f in $(find "$ndir" -name '*.o' | head -n 6); do
+		echo "--- $f ($(stat -c %s "$f") bytes)"
+		[ -n "$readelf" ] && "$readelf" -h "$f" 2>&1 | grep -E "Class|Data:|Machine|Type:" || true
+		od -A d -t x1 -N 16 "$f" | head -n 2
+	done
+	echo "--- toolchain on PATH:"
+	command -v aarch64-linux-android-clang || true
+	command -v ld.lld || true
+	command -v ninja || true
+	echo "===== end diagnostics ====="
+	return "$rc"
+}
