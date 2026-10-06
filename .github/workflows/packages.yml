@@ -171,8 +171,10 @@ jobs:
 
         for repo in $(jq --raw-output 'del(.pkg_format) | .[].name' repo.json); do
           # Fix so that lists do not contain duplicates
+          # (order-preserving: manual dispatch order = build order, so that
+          # e.g. wlroots/xwayland are built before labwc-android)
           if [ -f ./built_${repo}_packages.txt ]; then
-            sort ./built_${repo}_packages.txt | uniq > ./built_${repo}_packages.txt.tmp
+            awk '!seen[$0]++' ./built_${repo}_packages.txt > ./built_${repo}_packages.txt.tmp
             mv ./built_${repo}_packages.txt.tmp ./built_${repo}_packages.txt
           fi
           if [ -f ./built_${repo}_subpackages.txt ]; then
