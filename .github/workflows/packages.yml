@@ -225,8 +225,7 @@ jobs:
 
 
     - name: Enable zram
-      if: ${{ !inputs.disable-zram }}
-      if: ${{ steps.build-info.outputs.skip-building != 'true' }}
+      if: ${{ !inputs.disable-zram && steps.build-info.outputs.skip-building != 'true' }}
       uses: ./.github/actions/zram
       with:
         algorithm: zstd
