@@ -24,6 +24,10 @@ on:
         description: "Free space even if not building large package (useful when building a large number of packages)"
         type: boolean
         default: false
+      disable-zram:
+        description: "Skip enabling zram (workaround for suspected zram-induced build hangs)"
+        type: boolean
+        default: false
 
 permissions: {} # none
 
@@ -38,6 +42,7 @@ jobs:
     permissions:
       contents: read # actions/upload-artifact doesn't need contents: write
     runs-on: ubuntu-24.04
+    timeout-minutes: 150
     strategy:
       matrix:
         target_arch: [aarch64]
@@ -220,6 +225,7 @@ jobs:
 
 
     - name: Enable zram
+      if: ${{ !inputs.disable-zram }}
       if: ${{ steps.build-info.outputs.skip-building != 'true' }}
       uses: ./.github/actions/zram
       with:
