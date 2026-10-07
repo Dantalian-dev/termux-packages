@@ -35,8 +35,12 @@ termux_step_pre_configure() {
 	# run8/run9). Drop it: the termux cross compiler already carries the
 	# correct target (aarch64-linux-androidXX).
 	sed -i "/--target=x86_64-linux-android34/d" meson.build
-	grep -q "x86_64-linux-android34" meson.build && \
+	# NOTE: must not end the function with a failing command - use `if`,
+	# not `grep && echo` (grep returning 1 would make pre_configure return 1
+	# and set -e would kill the build silently; caused run10).
+	if grep -q "x86_64-linux-android34" meson.build; then
 		echo "WARNING: hardcoded x86_64 target still present in meson.build" >&2
+	fi
 }
 
 termux_step_make() {
