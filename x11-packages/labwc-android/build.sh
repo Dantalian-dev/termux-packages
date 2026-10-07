@@ -29,17 +29,22 @@ termux_step_pre_configure() {
 		-e "s|'/system/lib64/libandroid.so'|'${stubdir}/libandroid.so'|" \
 		meson.build
 
-	# Upstream hardcodes '--target=x86_64-linux-android34' as a project-wide
-	# argument (author's x86_64 build environment), which forces every object
-	# to x86-64 and breaks aarch64 linking ("incompatible with aarch64linux",
-	# run8/run9). Drop it: the termux cross compiler already carries the
-	# correct target (aarch64-linux-androidXX).
-	sed -i "/--target=x86_64-linux-android34/d" meson.build
+	# Upstream hardcodes '--target=x86_64-linux-android34': the *API level 34*
+	# part is intentional (AHardwareBuffer_allocate etc. need API >= 26,
+	# ASurfaceTransaction/AInputReceiver even higher, while termux's default
+	# cross target is android24), but the *arch* is the author's x86_64 build
+	# environment leaking through - it forces every object to x86-64 and
+	# breaks aarch64 linking ("incompatible with aarch64linux", run8/run9).
+	# Rewrite the arch only: aarch64-linux-android34 (same API 34 as the
+	# bridge APK's minSdk; devices under test run Android 15 / API 35).
+	# The last -target on the command line wins over the termux wrapper's
+	# baked-in api-24 target (proven by run9 where x86_64 won).
+	sed -i "s|--target=x86_64-linux-android34|--target=aarch64-linux-android34|" meson.build
 	# NOTE: must not end the function with a failing command - use `if`,
 	# not `grep && echo` (grep returning 1 would make pre_configure return 1
 	# and set -e would kill the build silently; caused run10).
-	if grep -q "x86_64-linux-android34" meson.build; then
-		echo "WARNING: hardcoded x86_64 target still present in meson.build" >&2
+	if grep -q -- "--target=x86_64" meson.build; then
+		echo "WARNING: x86_64 target still present in meson.build" >&2
 	fi
 }
 
