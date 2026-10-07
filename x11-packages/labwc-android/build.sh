@@ -28,6 +28,15 @@ termux_step_pre_configure() {
 		-e "s|cc.find_library('binder_ndk')|cc.find_library('binder_ndk', dirs: ['${stubdir}'])|" \
 		-e "s|'/system/lib64/libandroid.so'|'${stubdir}/libandroid.so'|" \
 		meson.build
+
+	# Upstream hardcodes '--target=x86_64-linux-android34' as a project-wide
+	# argument (author's x86_64 build environment), which forces every object
+	# to x86-64 and breaks aarch64 linking ("incompatible with aarch64linux",
+	# run8/run9). Drop it: the termux cross compiler already carries the
+	# correct target (aarch64-linux-androidXX).
+	sed -i "/--target=x86_64-linux-android34/d" meson.build
+	grep -q "x86_64-linux-android34" meson.build && \
+		echo "WARNING: hardcoded x86_64 target still present in meson.build" >&2
 }
 
 termux_step_make() {
